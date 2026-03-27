@@ -1,6 +1,7 @@
 use crate::audio_toolkit::{apply_custom_words, filter_transcription_output};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::model::{EngineType, ModelManager};
+use crate::cohere_backend::CohereTranscribeEngine;
 use crate::settings::{
     get_settings, ModelUnloadTimeout, OrtAcceleratorSetting, WhisperAcceleratorSetting,
 };
@@ -43,6 +44,7 @@ enum LoadedEngine {
     SenseVoice(SenseVoiceModel),
     GigaAM(GigaAMModel),
     Canary(CanaryModel),
+    CohereTranscribe(CohereTranscribeEngine),
 }
 
 /// RAII guard that clears the `is_loading` flag and notifies waiters on drop.
@@ -367,6 +369,19 @@ impl TranscriptionManager {
                 })?;
                 LoadedEngine::Canary(engine)
             }
+            EngineType::CohereTranscribe => {
+                let sidecar_script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("sidecar")
+                    .join("cohere_transcribe_server.py");
+                let engine =
+                    CohereTranscribeEngine::load(&sidecar_script).map_err(|e| {
+                        let error_msg =
+                            format!("Failed to load Cohere Transcribe sidecar: {}", e);
+                        emit_loading_failed(&error_msg);
+                        anyhow::anyhow!(error_msg)
+                    })?;
+                LoadedEngine::CohereTranscribe(engine)
+            }
         };
 
         // Update the current engine and model ID
@@ -599,6 +614,22 @@ impl TranscriptionManager {
                             canary_engine
                                 .transcribe(&audio, &options)
                                 .map_err(|e| anyhow::anyhow!("Canary transcription failed: {}", e))
+                        }
+                        LoadedEngine::CohereTranscribe(cohere_engine) => {
+                            let lang = if validated_language == "auto" {
+                                "auto".to_string()
+                            } else {
+                                validated_language.clone()
+                            };
+                            cohere_engine
+                                .transcribe(&audio, &lang)
+                                .map(|text| transcribe_rs::TranscriptionResult {
+                                    text,
+                                    segments: None,
+                                })
+                                .map_err(|e| {
+                                    anyhow::anyhow!("Cohere transcription failed: {}", e)
+                                })
                         }
                     }
                 },

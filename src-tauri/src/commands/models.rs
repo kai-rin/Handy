@@ -120,6 +120,21 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
         settings.selected_language = "auto".to_string();
     }
 
+    // Cohere Transcribe does not support auto-detection; reset "auto" to the
+    // first supported language so the UI reflects the actual language in use.
+    if model_id == "cohere-transcribe" && settings.selected_language == "auto" {
+        let first_lang = model_info
+            .supported_languages
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "ja".to_string());
+        log::info!(
+            "Cohere Transcribe: resetting language from 'auto' to '{}' (auto not supported)",
+            first_lang
+        );
+        settings.selected_language = first_lang;
+    }
+
     write_settings(app, settings);
 
     // Skip eager loading if unload is set to "Immediately" — the model

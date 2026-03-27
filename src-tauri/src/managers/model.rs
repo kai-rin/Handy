@@ -26,6 +26,7 @@ pub enum EngineType {
     SenseVoice,
     GigaAM,
     Canary,
+    CohereTranscribe,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -108,7 +109,7 @@ impl ModelManager {
         // Whisper supported languages (99 languages from tokenizer)
         // Including zh-Hans and zh-Hant variants to match frontend language codes
         let whisper_languages: Vec<String> = vec![
-            "en", "zh", "zh-Hans", "zh-Hant", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl",
+            "auto", "en", "zh", "zh-Hans", "zh-Hant", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl",
             "ca", "nl", "ar", "sv", "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs",
             "ro", "da", "hu", "ta", "no", "th", "ur", "hr", "bg", "lt", "la", "mi", "ml", "cy",
             "sk", "te", "fa", "lv", "bn", "sr", "az", "sl", "kn", "et", "mk", "br", "eu", "is",
@@ -440,7 +441,7 @@ impl ModelManager {
 
         // SenseVoice supported languages
         let sense_voice_languages: Vec<String> =
-            vec!["zh", "zh-Hans", "zh-Hant", "en", "yue", "ja", "ko"]
+            vec!["auto", "zh", "zh-Hans", "zh-Hant", "en", "yue", "ja", "ko"]
                 .into_iter()
                 .map(String::from)
                 .collect();
@@ -504,7 +505,7 @@ impl ModelManager {
         );
 
         // Canary 180m Flash supported languages (4 languages)
-        let canary_flash_languages: Vec<String> = vec!["en", "de", "es", "fr"]
+        let canary_flash_languages: Vec<String> = vec!["auto", "en", "de", "es", "fr"]
             .into_iter()
             .map(String::from)
             .collect();
@@ -539,7 +540,7 @@ impl ModelManager {
 
         // Canary 1B v2 supported languages (25 EU languages)
         let canary_1b_languages: Vec<String> = vec![
-            "bg", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "de", "el", "hu", "it", "lv",
+            "auto", "bg", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "de", "el", "hu", "it", "lv",
             "lt", "mt", "pl", "pt", "ro", "sk", "sl", "es", "sv", "ru", "uk",
         ]
         .into_iter()
@@ -569,6 +570,37 @@ impl ModelManager {
                 supports_translation: true,
                 is_recommended: false,
                 supported_languages: canary_1b_languages,
+                supports_language_selection: true,
+                is_custom: false,
+            },
+        );
+
+        // Cohere Transcribe — locally available model (no download needed).
+        // filename is an absolute path; PathBuf::join replaces the base when
+        // the argument is absolute, so is_downloaded resolves to the real dir.
+        available_models.insert(
+            "cohere-transcribe".to_string(),
+            ModelInfo {
+                id: "cohere-transcribe".to_string(),
+                name: "Cohere Transcribe".to_string(),
+                description: "High-accuracy multilingual ASR (local Python sidecar).".to_string(),
+                filename: std::env::var("COHERE_MODEL_PATH")
+                    .unwrap_or_default(),
+                url: None,
+                sha256: None,
+                size_mb: 0,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::CohereTranscribe,
+                accuracy_score: 0.92,
+                speed_score: 0.50,
+                supports_translation: false,
+                is_recommended: false,
+                supported_languages: vec![
+                    "en", "de", "fr", "it", "es", "pt", "el", "nl", "pl", "ar", "vi", "zh", "ja", "ko",
+                ].into_iter().map(String::from).collect(),
                 supports_language_selection: true,
                 is_custom: false,
             },

@@ -42,3 +42,6 @@ blob-report/
 
 # Nix build output
 result
+
+# Local Claude Code instructions
+.claude.local.md
